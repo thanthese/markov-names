@@ -96,7 +96,9 @@ filterWords originals news = liftM filtering news
   where filtering = filter (not . flip elem originals)
 
 main = do
+  putStrLn "\n"
   file <- readFile "male_names.txt"
   let oldNames = addCarriageReturns (words file)
-  newNames <- filterWords oldNames (buildWords 3 oldNames 25)
+  newNames <- filterWords oldNames (buildWords 2 oldNames 40)
   mapM_ (putStrLn . butLast) newNames
+  putStrLn "\n"
