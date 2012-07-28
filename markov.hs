@@ -3,6 +3,7 @@ import qualified Data.List as List
 import Random (randomRIO)
 import Control.Monad (liftM)
 
+------------------------------------------------------------
 ---- utility functions
 
 -- add a carriage return to each string
@@ -32,7 +33,11 @@ butLast word = take (length word - 1) word
 rand :: [a] -> IO a
 rand xs = liftM (xs !!) (randomRIO (0, length xs - 1))
 
+------------------------------------------------------------
 ---- app functions
+
+sampleNames :: [String]
+sampleNames = ["Aeneas", "Amadeus", "Andreas", "Antonius", "Apollos", "Atticus", "Augustus", "Aurelius", "Caesar", "Caius", "Cassius", "Cato", "Cicero", "Claudius", "Cornelius", "Cosmo", "Cyrus", "Decimus", "Demetrius", "Felix", "Flavius", "Gaius", "Horatio", "Justus", "Lazarus", "Lucius", "Magnus", "Marcellus", "Marcus", "Marius", "Maximus", "Nero", "Octavius", "Philo", "Primus", "Quintus", "Remus", "Romanus", "Romulus", "Rufus", "Seneca", "Septimus", "Severus", "Stephanus", "Tarquin", "Theon", "Tiberius", "Titus", "Urban"]
 
 type Table = Map.Map String String  -- the markov table
 type Order = Int
@@ -68,31 +73,30 @@ getOrder = length . head . Map.keys
 
 -- construct a new word, based on the table
 buildWord :: Table -> IO String
-buildWord table = rand (starters table) >>= buildWordFoo
+buildWord table = rand (starters table) >>= buildWord'
   where
     order = getOrder table
-    buildWordFoo word
+    buildWord' word
       | hasEnded word = return word
       | otherwise = rand options >>= addLetter
       where
         options = table Map.! takeLast order word
-        addLetter = buildWordFoo . (word ++) . (: [])
+        addLetter = buildWord' . (word ++) . (: [])
 
--- construct a list of words
-buildWords :: Order -> [String] -> Int -> [IO String]
-buildWords order words n = take n buildWords'
+-- construct a list of words from a list of words
+buildWords :: Order -> [String] -> Int -> IO [String]
+buildWords order words n = sequence (take n buildWords')
   where
     table = trainWords order (addCarriageReturns words)
     buildWords' = buildWord table : buildWords'
 
--- print words
-printAll :: [IO String] -> IO ()
-printAll [] = putStrLn "\ndone"
-printAll words = do
-                  head words >>= putStrLn . butLast
-                  printAll (tail words)
+-- remove names that were in the original list
+filterWords :: [String] -> IO [String] -> IO [String]
+filterWords originals news = liftM filtering news
+  where filtering = filter (not . flip elem originals)
 
 main = do
-        file <- readFile "male_names.txt"
-        let names = addCarriageReturns (words file)
-        printAll (buildWords 3 names 25)
+  file <- readFile "male_names.txt"
+  let oldNames = addCarriageReturns (words file)
+  newNames <- filterWords oldNames (buildWords 3 oldNames 25)
+  mapM_ (putStrLn . butLast) newNames
