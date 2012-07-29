@@ -13,11 +13,11 @@ addCarriageReturns :: [String] -> [String]
 addCarriageReturns = map (++ "\n")
 
 -- groupInto 2 "hello" => ["he","el","ll","lo"]
-groupInto :: Int -> String -> [String]
+groupInto :: Int -> [a] -> [[a]]
 groupInto len = takeWhile isLen . groups
   where
     isLen = (len ==) . length
-    groups word = take len word : groups (drop 1 word)
+    groups ls = take len ls : groups (tail ls)
 
 -- takeLast 2 "test" => "st"
 takeLast :: Int -> [a] -> [a]
@@ -25,7 +25,7 @@ takeLast n ls = drop (length ls - n) ls
 
 -- butLast "test" => "tes"
 butLast :: [a] -> [a]
-butLast word = take (length word - 1) word
+butLast ls = take (length ls - 1) ls
 
 -- return a random element from the list
 --
@@ -67,7 +67,7 @@ starters = filter startsWithCapital . Map.keys
 hasEnded :: String -> Bool
 hasEnded = (== '\n') . last
 
--- get order of table
+-- get markov order of table
 getOrder :: Table -> Int
 getOrder = length . head . Map.keys
 
@@ -76,12 +76,13 @@ buildWord :: Table -> IO String
 buildWord table = rand (starters table) >>= buildWord'
   where
     order = getOrder table
+    ending = takeLast order
     buildWord' word
       | hasEnded word = return word
-      | otherwise = rand options >>= addLetter
+      | otherwise = rand options >>= buildWord' . addLetter
       where
-        options = table Map.! takeLast order word
-        addLetter = buildWord' . (word ++) . (: [])
+        options = table Map.! ending word
+        addLetter = (word ++) . (: [])
 
 -- construct a list of words from a list of words
 buildWords :: Order -> [String] -> Int -> IO [String]
