@@ -2,6 +2,7 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 import Random (randomRIO)
 import Control.Monad (liftM)
+import System.Environment (getArgs)
 
 ------------------------------------------------------------
 ---- utility functions
@@ -108,12 +109,15 @@ isOld :: [String] -> (String -> Bool)
 isOld oldNames = not . flip elem oldNames
 
 main = do
-  let order = 2
-  let len = 20
-  let filename = "male_names.txt"
+  putStrLn "Expected arguments are:"
+  putStrLn "  order      : markov chain order (2 or 3 work best)"
+  putStrLn "  len        : how many results you want to see"
+  putStrLn "  filename   : source file (one name per line)"
+  putStrLn ""
+  (order:len:filename:_) <- getArgs
   rawFileData <- readFile filename
   let oldNames = parseFile rawFileData
-  let table = trainWords order oldNames
+  let table = trainWords (read order :: Int) oldNames
   let filterFn = isOld oldNames
-  newNames <- (sequence . take len . buildWords filterFn) table
+  newNames <- (sequence . take (read len :: Int) . buildWords filterFn) table
   mapM_ printWord newNames
