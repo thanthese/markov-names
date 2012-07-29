@@ -71,6 +71,14 @@ hasEnded = (== '\n') . last
 getOrder :: Table -> Int
 getOrder = length . head . Map.keys
 
+-- parse raw data from file into list of name: ["Tom", "Harry"]
+parseFile :: String -> [String]
+parseFile = addCarriageReturns . words
+
+-- clean and print a completed word
+printWord :: String -> IO ()
+printWord = putStrLn . butLast
+
 -- construct a new word, based on the table
 buildWord :: Table -> IO String
 buildWord table = rand (starters table) >>= buildWord'
@@ -84,22 +92,28 @@ buildWord table = rand (starters table) >>= buildWord'
         options = table Map.! ending word
         addLetter = (word ++) . (: [])
 
--- construct a list of words from a list of words
-buildWords :: Order -> [String] -> Int -> IO [String]
-buildWords order words n = sequence (take n buildWords')
-  where
-    table = trainWords order (addCarriageReturns words)
-    buildWords' = buildWord table : buildWords'
+-- construct an infinite list of words of original words from a table.  The
+-- input list of words should well-formatted: they should start with capitals
+-- and end with carriage returns.  All words returned will pass the filter
+-- function.
+buildWords :: (String -> Bool) -> Table -> [IO String]
+buildWords filterFn table =
+  (buildWord table >>= check) : buildWords filterFn table
+    where check word
+            | filterFn word = return word
+            | otherwise = head (buildWords filterFn table)
 
--- remove names that were in the original list
-filterWords :: [String] -> IO [String] -> IO [String]
-filterWords originals news = liftM filtering news
-  where filtering = filter (not . flip elem originals)
+-- create a function that determines whether a given word is old
+isOld :: [String] -> (String -> Bool)
+isOld oldNames = not . flip elem oldNames
 
 main = do
-  putStrLn "\n"
-  file <- readFile "male_names.txt"
-  let oldNames = addCarriageReturns (words file)
-  newNames <- filterWords oldNames (buildWords 2 oldNames 40)
-  mapM_ (putStrLn . butLast) newNames
-  putStrLn "\n"
+  let order = 2
+  let len = 20
+  let filename = "male_names.txt"
+  rawFileData <- readFile filename
+  let oldNames = parseFile rawFileData
+  let table = trainWords order oldNames
+  let filterFn = isOld oldNames
+  newNames <- (sequence . take len . buildWords filterFn) table
+  mapM_ printWord newNames
